@@ -4,6 +4,144 @@
  */
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
-const deployedContracts = {} as const;
+const deployedContracts = {
+  31337: {
+    YourContract: {
+      address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+      abi: [
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "ipfsHash",
+              type: "string",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "fileName",
+              type: "string",
+            },
+            {
+              indexed: false,
+              internalType: "address",
+              name: "uploader",
+              type: "address",
+            },
+          ],
+          name: "FileUploaded",
+          type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          name: "files",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "string",
+              name: "ipfsHash",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "fileName",
+              type: "string",
+            },
+            {
+              internalType: "uint256",
+              name: "uploadTime",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "uploader",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getAllFiles",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "uint256",
+                  name: "id",
+                  type: "uint256",
+                },
+                {
+                  internalType: "string",
+                  name: "ipfsHash",
+                  type: "string",
+                },
+                {
+                  internalType: "string",
+                  name: "fileName",
+                  type: "string",
+                },
+                {
+                  internalType: "uint256",
+                  name: "uploadTime",
+                  type: "uint256",
+                },
+                {
+                  internalType: "address",
+                  name: "uploader",
+                  type: "address",
+                },
+              ],
+              internalType: "struct YourContract.File[]",
+              name: "",
+              type: "tuple[]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "string",
+              name: "_ipfsHash",
+              type: "string",
+            },
+            {
+              internalType: "string",
+              name: "_fileName",
+              type: "string",
+            },
+          ],
+          name: "uploadFile",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 6,
+    },
+  },
+} as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;
