@@ -2,153 +2,205 @@
 
 import { useState } from "react";
 import type { NextPage } from "next";
+import { formatEther, parseEther } from "viem";
+import { useAccount } from "wagmi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 const Home: NextPage = () => {
   // ---------------------------------------------------------
-  // 1. AYARLAR: PINATA JWT KODUNU BURAYA YAPIŞTIR
-  // (Gerçek projede bu .env dosyasında saklanır ama ödev için burası OK)
-  const PINATA_JWT = "BURAYA_ANAHTAR_GELECEK"; 
+  // JWT KODUNU BURAYA GERİ YAPIŞTIR
+  const PINATA_JWT = "buraya jwt kodu gelecek";
   // ---------------------------------------------------------
 
+  const { address: connectedAddress } = useAccount();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [ipfsHash, setIpfsHash] = useState("");
+  const [priceInput, setPriceInput] = useState("0");
 
-  // 2. BLOKZİNCİR: Dosya yükleme fonksiyonunu hazırla
+  // YENİ: Arama ve Sekme (Tab) Durumları
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all"); // 'all' veya 'mine'
+
+  // --- BLOKZİNCİR BAĞLANTILARI ---
   const { writeContractAsync: uploadFileToChain } = useScaffoldWriteContract("YourContract");
+  const { writeContractAsync: buyFileFromChain } = useScaffoldWriteContract("YourContract");
 
-  // 3. BLOKZİNCİR: Yüklenen dosyaları oku
   const { data: files } = useScaffoldReadContract({
     contractName: "YourContract",
     functionName: "getAllFiles",
   });
 
-  // 4. FONKSİYON: Dosya Seçilince Çalışır
-  const changeHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
-    }
-  };
+  // --- YENİ: FİLTRELEME MANTIĞI ---
+  const filteredFiles = files?.filter((file: any) => {
+    // 1. Arama Filtresi
+    const matchesSearch = file.fileName.toLowerCase().includes(searchTerm.toLowerCase());
 
-  // 5. FONKSİYON: "Yükle" Butonuna Basınca Çalışır
-  const handleSubmission = async () => {
-    if (!selectedFile) return alert("Lütfen önce bir dosya seçin!");
+    // 2. Sekme Filtresi (Tümü mü? Benimkiler mi?)
+    const matchesTab = activeTab === "all" ? true : file.uploader === connectedAddress;
+
+    return matchesSearch && matchesTab;
+  });
+
+  const handleUpload = async () => {
+    if (!selectedFile) return alert("Dosya seçmedin!");
     setUploading(true);
-
     try {
-      // A) Dosyayı Pinata'ya (IPFS) Gönder
       const formData = new FormData();
       formData.append("file", selectedFile);
-      
       const metadata = JSON.stringify({ name: selectedFile.name });
       formData.append("pinataMetadata", metadata);
-
       const options = JSON.stringify({ cidVersion: 0 });
       formData.append("pinataOptions", options);
 
       const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${PINATA_JWT}`,
-        },
+        headers: { Authorization: `Bearer ${PINATA_JWT}` },
         body: formData,
       });
-
       const resData = await res.json();
       const fileHash = resData.IpfsHash;
-      setIpfsHash(fileHash);
-      console.log("IPFS Hash:", fileHash);
 
-      // B) Hash Kodunu Blokzincire Kaydet (Metamask Açılır)
       await uploadFileToChain({
         functionName: "uploadFile",
-        args: [fileHash, selectedFile.name],
+        args: [fileHash, selectedFile.name, parseEther(priceInput)],
       });
-
-      alert("Başarılı! Dosya IPFS'e ve Blokzincire kaydedildi.");
-      
-    } catch (error) {
-      console.error(error);
-      alert("Bir hata oluştu. Konsola bakınız.");
+      alert("Dosya pazara eklendi! 🛒");
+      setSelectedFile(null); // Yükleme bitince seçimi temizle
+    } catch (e) {
+      console.error(e);
+      alert("Hata oluştu.");
     } finally {
       setUploading(false);
     }
   };
 
+  const handleBuy = async (fileId: bigint, price: bigint) => {
+    try {
+      await buyFileFromChain({
+        functionName: "buyFile",
+        args: [fileId],
+        value: price,
+      });
+      alert("Satın alma başarılı! Dosyayı indirebilirsin. 🎉");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
-    <div className="flex items-center flex-col flex-grow pt-10">
-      
-      {/* BAŞLIK KISMI */}
-      <div className="px-5">
-        <h1 className="text-center">
-          <span className="block text-4xl font-bold">EtherShare 📂</span>
-          <span className="block text-xl mt-2">Merkeziyetsiz Dosya Deposu</span>
+    <div className="min-h-screen bg-base-200 p-10 font-sans">
+      <div className="text-center mb-10">
+        <h1 className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          EtherShare v2.1
         </h1>
+        <p className="text-xl mt-4 text-gray-500">Merkeziyetsiz Dosya Pazaryeri</p>
       </div>
 
-      {/* YÜKLEME KUTUSU */}
-      <div className="card w-96 bg-base-100 shadow-xl mt-10 border-2 border-primary">
-        <div className="card-body items-center text-center">
-          <h2 className="card-title">Dosya Yükle</h2>
-          
-          <input 
-            type="file" 
-            onChange={changeHandler} 
-            className="file-input file-input-bordered file-input-primary w-full max-w-xs" 
+      {/* --- YÜKLEME ALANI --- */}
+      <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto mb-10 border-dashed border-4 border-primary p-8 text-center">
+        <h2 className="text-2xl font-bold mb-4">📤 Dosya Satışa Çıkar</h2>
+        <input
+          type="file"
+          onChange={e => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+          className="file-input file-input-bordered file-input-primary w-full max-w-xs mx-auto"
+        />
+        <div className="form-control w-full max-w-xs mx-auto mt-4">
+          <label className="label">
+            <span className="label-text">Fiyat (ETH)</span>
+          </label>
+          <input
+            type="number"
+            value={priceInput}
+            onChange={e => setPriceInput(e.target.value)}
+            className="input input-bordered"
+            placeholder="0.0"
           />
-          
-          <div className="card-actions mt-5">
-            <button 
-              className={`btn btn-primary ${uploading ? "loading" : ""}`} 
-              onClick={handleSubmission}
-              disabled={uploading}
+        </div>
+        <button
+          className={`btn btn-primary mt-6 w-full max-w-xs mx-auto ${uploading ? "loading" : ""}`}
+          onClick={handleUpload}
+          disabled={uploading}
+        >
+          {uploading ? "IPFS'e Gönderiliyor..." : "Pazara Ekle 🚀"}
+        </button>
+      </div>
+
+      {/* --- YENİ: ARAMA VE SEKMELER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-center max-w-6xl mx-auto mb-6 gap-4">
+        {/* Sekmeler (Tabs) */}
+        <div className="tabs tabs-boxed">
+          <a className={`tab ${activeTab === "all" ? "tab-active" : ""}`} onClick={() => setActiveTab("all")}>
+            🌎 Tüm Dosyalar
+          </a>
+          <a className={`tab ${activeTab === "mine" ? "tab-active" : ""}`} onClick={() => setActiveTab("mine")}>
+            👤 Dosyalarım
+          </a>
+        </div>
+
+        {/* Arama Kutusu */}
+        <input
+          type="text"
+          placeholder="🔍 Dosya adı ara..."
+          className="input input-bordered w-full max-w-xs"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {/* --- DOSYA KARTLARI --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {filteredFiles?.map((file: any) => {
+          const isFree = file.price === 0n;
+          const isMine = file.uploader === connectedAddress;
+          const formattedPrice = formatEther(file.price);
+
+          return (
+            <div
+              key={file.id}
+              className="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 border border-base-300"
             >
-              {uploading ? "IPFS'e Yükleniyor..." : "🚀 Blokzincire Kaydet"}
-            </button>
-          </div>
-        </div>
-      </div>
+              <figure className="bg-gray-100 h-32 flex items-center justify-center text-6xl">
+                {file.fileName.endsWith(".pdf") ? "📕" : "🖼️"}
+              </figure>
+              <div className="card-body">
+                <h2 className="card-title justify-between text-sm">
+                  {file.fileName.length > 20 ? file.fileName.substring(0, 18) + "..." : file.fileName}
+                  {isFree ? (
+                    <div className="badge badge-success text-white">ÜCRETSİZ</div>
+                  ) : (
+                    <div className="badge badge-warning">{formattedPrice} ETH</div>
+                  )}
+                </h2>
 
-      {/* LİSTELEME KISMI */}
-      <div className="mt-10 w-full max-w-4xl px-5">
-        <h2 className="text-3xl font-bold mb-5 text-center">Son Yüklenen Dosyalar</h2>
-        <div className="overflow-x-auto">
-          <table className="table w-full">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Dosya Adı</th>
-                <th>Yükleyen (Cüzdan)</th>
-                <th>İndir / Görüntüle</th>
-              </tr>
-            </thead>
-            <tbody>
-              {files?.map((file: any, index: number) => (
-                <tr key={index} className="hover">
-                  <th>{file.id.toString()}</th>
-                  <td>{file.fileName}</td>
-                  <td className="font-mono text-xs">{file.uploader}</td>
-                  <td>
-                    <a 
-                      href={`https://gateway.pinata.cloud/ipfs/${file.ipfsHash}`} 
-                      target="_blank" 
-                      className="link link-primary"
+                <p className="text-xs text-gray-400 font-mono mt-2">
+                  Satıcı: {file.uploader.substring(0, 6)}...{file.uploader.substring(38)}
+                </p>
+
+                <div className="card-actions justify-end mt-4">
+                  {isMine || isFree ? (
+                    <a
+                      href={`https://gateway.pinata.cloud/ipfs/${file.ipfsHash}`}
+                      target="_blank"
                       rel="noreferrer"
+                      className="btn btn-outline btn-success w-full"
                     >
-                      Dosyayı Aç ↗
+                      Dosyayı Aç / İndir ⬇️
                     </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {(!files || files.length === 0) && (
-            <div className="text-center mt-5 opacity-50">Henüz hiç dosya yüklenmemiş.</div>
-          )}
-        </div>
-      </div>
+                  ) : (
+                    <button className="btn btn-warning w-full" onClick={() => handleBuy(file.id, file.price)}>
+                      Satın Al ({formattedPrice} ETH) 💸
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
 
+        {(!filteredFiles || filteredFiles.length === 0) && (
+          <div className="col-span-full text-center py-10 opacity-50">Aradığınız kriterde dosya bulunamadı... 🕵️‍♂️</div>
+        )}
+      </div>
     </div>
   );
 };

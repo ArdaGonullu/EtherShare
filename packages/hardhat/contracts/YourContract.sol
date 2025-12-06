@@ -3,45 +3,57 @@ pragma solidity >=0.8.0 <0.9.0;
 
 contract YourContract {
 
-    // 1. DOSYA KİMLİĞİ (STRUCT)
-    // CryptoZombies'deki "Zombie" yapısı gibi, burada "File" yapımız var.
     struct File {
-        uint256 id;             // Sıra numarası
-        string ipfsHash;        // IPFS'teki adres (QmXoyp...)
-        string fileName;        // Dosyanın adı (odev.pdf)
-        uint256 uploadTime;     // Yüklenme zamanı
-        address uploader;       // Yükleyen cüzdan adresi (msg.sender)
+        uint256 id;
+        string ipfsHash;
+        string fileName;
+        uint256 uploadTime;
+        address uploader;
+        uint256 price;      // YENİ: Dosya fiyatı (0 = Ücretsiz)
+        uint256 downloadCount; // YENİ: İndirilme sayısı
     }
 
-    // 2. KAYIT DEFTERİ (ARRAY)
-    // Tüm dosyaların saklandığı ana liste
     File[] public files;
+    
+    // Satın alınan dosyaların takibi: DosyaID -> Cüzdan -> İzin Var mı?
+    mapping(uint256 => mapping(address => bool)) public hasAccess;
 
-    // 3. BİLDİRİM ZİLİ (EVENT)
-    // Web sitesinin "Yeni dosya geldi!" diye duyması için
-    event FileUploaded(uint256 id, string ipfsHash, string fileName, address uploader);
+    event FileUploaded(uint256 id, string ipfsHash, string fileName, uint256 price, address uploader);
+    event FilePurchased(uint256 id, address buyer, address seller, uint256 price);
 
-    // 4. DOSYA YÜKLEME FONKSİYONU
-    // Frontend'den buraya Hash ve İsim gelecek
-    function uploadFile(string memory _ipfsHash, string memory _fileName) public {
+    // 1. DOSYA YÜKLEME (Fiyatlı)
+    function uploadFile(string memory _ipfsHash, string memory _fileName, uint256 _price) public {
+        uint256 newId = files.length;
+        files.push(File(newId, _ipfsHash, _fileName, block.timestamp, msg.sender, _price, 0));
         
-        uint256 newId = files.length; // Yeni numara ver (0, 1, 2...)
-
-        // Listeye (Array) yeni dosyayı ekle
-        files.push(File(
-            newId,
-            _ipfsHash,
-            _fileName,
-            block.timestamp, // Şu anki blok zamanı
-            msg.sender       // Fonksiyonu çağıran kişi (Sen)
-        ));
-
-        // İşlem bitince zili çal
-        emit FileUploaded(newId, _ipfsHash, _fileName, msg.sender);
+        // Yükleyen kişinin kendi dosyasına erişim izni olmalı
+        hasAccess[newId][msg.sender] = true;
+        
+        emit FileUploaded(newId, _ipfsHash, _fileName, _price, msg.sender);
     }
 
-    // 5. TÜM DOSYALARI GETİR
-    // Web sitesinde listelemek için yardımcı fonksiyon
+    // 2. DOSYA SATIN ALMA
+    function buyFile(uint256 _id) public payable {
+        File storage file = files[_id];
+        require(msg.value >= file.price, "Yetersiz bakiye");
+        require(!hasAccess[_id][msg.sender], "Zaten satin aldiniz");
+
+        // Parayı satıcıya gönder
+        payable(file.uploader).transfer(msg.value);
+        
+        // İzni ver ve sayacı artır
+        hasAccess[_id][msg.sender] = true;
+        file.downloadCount++;
+
+        emit FilePurchased(_id, msg.sender, file.uploader, msg.value);
+    }
+
+    // 3. ERİŞİM KONTROLÜ (Frontend için yardımcı)
+    function checkAccess(uint256 _id, address _user) public view returns (bool) {
+        if (files[_id].price == 0) return true; // Ücretsizse herkese açık
+        return hasAccess[_id][_user]; // Değilse izne bak
+    }
+
     function getAllFiles() public view returns (File[] memory) {
         return files;
     }
