@@ -94,30 +94,6 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "uint256",
-              name: "_id",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "_user",
-              type: "address",
-            },
-          ],
-          name: "checkAccess",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
               name: "",
               type: "uint256",
             },
@@ -208,6 +184,25 @@ const deployedContracts = {
               internalType: "struct YourContract.File[]",
               name: "",
               type: "tuple[]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "_user",
+              type: "address",
+            },
+          ],
+          name: "getUserAccessList",
+          outputs: [
+            {
+              internalType: "bool[]",
+              name: "",
+              type: "bool[]",
             },
           ],
           stateMutability: "view",
