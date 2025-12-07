@@ -73,6 +73,18 @@ const deployedContracts = {
               name: "uploader",
               type: "address",
             },
+            {
+              indexed: false,
+              internalType: "bool",
+              name: "isEncrypted",
+              type: "bool",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "parentId",
+              type: "uint256",
+            },
           ],
           name: "FileUploaded",
           type: "event",
@@ -135,6 +147,16 @@ const deployedContracts = {
               name: "downloadCount",
               type: "uint256",
             },
+            {
+              internalType: "bool",
+              name: "isEncrypted",
+              type: "bool",
+            },
+            {
+              internalType: "uint256",
+              name: "parentId",
+              type: "uint256",
+            },
           ],
           stateMutability: "view",
           type: "function",
@@ -178,6 +200,16 @@ const deployedContracts = {
                 {
                   internalType: "uint256",
                   name: "downloadCount",
+                  type: "uint256",
+                },
+                {
+                  internalType: "bool",
+                  name: "isEncrypted",
+                  type: "bool",
+                },
+                {
+                  internalType: "uint256",
+                  name: "parentId",
                   type: "uint256",
                 },
               ],
@@ -247,6 +279,16 @@ const deployedContracts = {
             {
               internalType: "uint256",
               name: "_price",
+              type: "uint256",
+            },
+            {
+              internalType: "bool",
+              name: "_isEncrypted",
+              type: "bool",
+            },
+            {
+              internalType: "uint256",
+              name: "_parentId",
               type: "uint256",
             },
           ],
